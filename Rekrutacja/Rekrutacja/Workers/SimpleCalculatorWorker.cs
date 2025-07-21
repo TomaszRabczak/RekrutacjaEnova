@@ -3,10 +3,12 @@ using Soneta.Kadry;
 using Soneta.Types;
 using Soneta.Tools;
 using System.Linq;
+using Rekrutacja.Workers;
 
+[assembly: Worker(typeof(SimpleCalculatorWorker), typeof(Pracownicy))]
 namespace Rekrutacja.Workers
 {
-    public class SimpleCalculatorWorker : BaseWorker
+    public class SimpleCalculatorWorker
     {
         public class CalculatorWorkerParameters : ContextBase
         {

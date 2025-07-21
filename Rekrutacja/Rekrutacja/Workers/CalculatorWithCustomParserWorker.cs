@@ -1,22 +1,24 @@
-﻿using Soneta.Business;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Soneta.Business;
 using Soneta.Kadry;
 using Soneta.Tools;
 using Soneta.Types;
-using System;
 
 namespace Rekrutacja.Workers
 {
-    public class ShapeAreaCalculatorWorker
+    public class CalculatorWithCustomParserWorker
     {
         public class ShapeAreaCalculatorWorkerParameters : ContextBase
         {
             [Priority(1)]
             [Caption("A")]
-            public int Arg1 { get; set; }
+            public string Arg1 { get; set; }
 
             [Priority(2)]
             [Caption("B")]
-            public int Arg2 { get; set; }
+            public string Arg2 { get; set; }
 
             [Priority(3)]
             [Caption("Operacja")]
@@ -38,6 +40,21 @@ namespace Rekrutacja.Workers
         [Context]
         public ShapeAreaCalculatorWorkerParameters Parameters { get; set; }
 
+        private Dictionary<ShapeEnum, Func<string, string, bool>> _shapeValueValidationMap = 
+            new Dictionary<ShapeEnum, Func<string, string, bool>>
+        {
+            {ShapeEnum.Kwadrat, (string value1, string value2) => IsCorrectValue(value1) },
+            {ShapeEnum.Prostokąt, (string value1, string value2) => IsCorrectValue(value1) && IsCorrectValue(value2) },
+            {ShapeEnum.Trojkąt, (string value1, string value2) => IsCorrectValue(value1) && IsCorrectValue(value2) },
+            {ShapeEnum.Koło, (string value1, string value2) => IsCorrectValue(value1) }
+        };
+
+        private Dictionary<char, int> _charNumberMap = new Dictionary<char, int>
+        {
+            { '1', 1 }, { '2', 2 }, { '3', 3 }, { '4', 4 }, { '5', 5 }, { '6', 6 }, { '7', 7 }, { '8', 8 }, { '9', 9 }, 
+            { '0', 0 },
+        };
+
         [Action("Kalkulator",
            Description = "Prosty kalkulator",
            Priority = 10,
@@ -46,7 +63,11 @@ namespace Rekrutacja.Workers
            Target = ActionTarget.ToolbarWithText)]
         public string PerformAction()
         {
-            double result = CalculateShapeArea();
+            if (_shapeValueValidationMap.TryGetValue(Parameters.Shape, out Func<string, string, bool> validate) &&
+               !validate(Parameters.Arg1, Parameters.Arg2))
+                return "Wprowadzona wartość nie jest liczbą. Wartość w kolumnie Wynik pozostała niezmieniona.";
+
+            double result = CalculateShapeArea(Parse(Parameters.Arg1), Parse(Parameters.Arg2));
             if (result < 0)
                 return "Wynik nie może być liczbą ujemną. Wartość w kolumnie Wynik pozostała niezmieniona.";
 
@@ -75,29 +96,42 @@ namespace Rekrutacja.Workers
             return null;
         }
 
-        private int CalculateShapeArea()
+        private static bool IsCorrectValue(string value)
+        {
+            return !string.IsNullOrEmpty(value) && value.All(x => char.IsDigit(x));
+        }
+
+        private int Parse(string value)
+        {
+            if(!IsCorrectValue(value))
+                return 0;
+
+            if (value.Length == 1 && _charNumberMap.TryGetValue(value[0], out int parsedValue))
+                return parsedValue;
+
+            int sum = 0;
+            int multipleFactor = 10;
+            for (int i = 0; i < value.Length; i++)
+                sum += _charNumberMap[value[i]] * (int)(System.Math.Pow(multipleFactor, value.Length - i - 1));
+
+            return sum;
+        }
+
+        private int CalculateShapeArea(int arg1, int arg2)
         {
             switch (Parameters.Shape)
             {
                 case ShapeEnum.Kwadrat:
-                    return Parameters.Arg1 * Parameters.Arg1;
+                    return arg1 * arg1;
                 case ShapeEnum.Prostokąt:
-                    return Parameters.Arg1 * Parameters.Arg2;
+                    return arg1 * arg2;
                 case ShapeEnum.Trojkąt:
-                    return Parameters.Arg1 * Parameters.Arg2 / 2;
+                    return arg1 * arg2 / 2;
                 case ShapeEnum.Koło:
-                    return (int)(System.Math.PI * Parameters.Arg1 * Parameters.Arg1);
+                    return (int)(System.Math.PI * arg1 * arg1);
                 default:
                     return 0;
             }
         }
     }
-}
-
-public enum ShapeEnum
-{
-    Kwadrat,
-    Prostokąt,
-    Trojkąt,
-    Koło
 }
