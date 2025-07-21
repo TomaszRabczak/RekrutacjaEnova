@@ -1,34 +1,32 @@
-﻿using Rekrutacja.Workers;
-using Soneta.Business;
+﻿using Soneta.Business;
 using Soneta.Kadry;
-using Soneta.Types;
 using Soneta.Tools;
-using System.Linq;
+using Soneta.Types;
+using System;
 
-[assembly: Worker(typeof(CalculatorWorker), typeof(Pracownicy))]
 namespace Rekrutacja.Workers
 {
-    public class CalculatorWorker
+    public class ShapeAreaCalculatorWorker : BaseWorker
     {
-        public class CalculatorWorkerParameters : ContextBase
+        public class ShapeAreaCalculatorWorkerParameters : ContextBase
         {
             [Priority(1)]
             [Caption("A")]
-            public double Arg1 {  get; set; }
+            public int Arg1 { get; set; }
 
             [Priority(2)]
             [Caption("B")]
-            public double Arg2 { get; set; }
+            public int Arg2 { get; set; }
 
             [Priority(3)]
             [Caption("Operacja")]
-            public string Operation {  get; set; }
+            public ShapeEnum Shape { get; set; }
 
             [Priority(4)]
             [Caption("Data obliczeń")]
             public Date CalculationDate { get; set; }
 
-            public CalculatorWorkerParameters(Context context) : base(context)
+            public ShapeAreaCalculatorWorkerParameters(Context context) : base(context)
             {
                 CalculationDate = Date.Today;
             }
@@ -38,9 +36,7 @@ namespace Rekrutacja.Workers
         public Context Cx { get; set; }
 
         [Context]
-        public CalculatorWorkerParameters Parameters { get; set; }
-
-        private string[] _allowedOperations = { "+", "-", "*", "/" };
+        public ShapeAreaCalculatorWorkerParameters Parameters { get; set; }
 
         [Action("Kalkulator",
            Description = "Prosty kalkulator",
@@ -50,18 +46,13 @@ namespace Rekrutacja.Workers
            Target = ActionTarget.ToolbarWithText)]
         public string PerformAction()
         {
-            string validationError = GetValidationError();
-            if(validationError != null)
-                return validationError;
-
-            double result = PerformSimpleCalculation(Parameters.Arg1, Parameters.Arg2,
-                            Parameters.Operation);
+            double result = CalculateShapeArea();
             if (result < 0)
                 return "Wynik nie może być liczbą ujemną. Wartość w kolumnie Wynik pozostała niezmieniona.";
 
             DebuggerSession.MarkLineAsBreakPoint();
 
-            Pracownik[] workers = {};
+            Pracownik[] workers = { };
             if (Cx.Contains(typeof(Pracownik[])))
                 workers = (Pracownik[])Cx[typeof(Pracownik[])];
 
@@ -84,31 +75,29 @@ namespace Rekrutacja.Workers
             return null;
         }
 
-        private string GetValidationError()
+        private int CalculateShapeArea()
         {
-            if (Parameters.Operation == "/" && Parameters.Arg2 == 0)
-                return "Dzielenie przez 0 jest niedozwolone. Wartość w kolumnie Wynik pozostała niezmieniona.";
-            else if (!_allowedOperations.Contains(Parameters.Operation))
-                return "Niepoprawna wartość w polu Operacja. Wartość w kolumnie Wynik pozostała niezmieniona.";
-
-            return null;
-        }
-
-        private double PerformSimpleCalculation(double arg1, double arg2, string operation)
-        {
-            switch (operation)
+            switch (Parameters.Shape)
             {
-                case "+":
-                    return arg1 + arg2;
-                case "-":
-                    return arg1 - arg2;
-                case "*":
-                    return arg1 * arg2;
-                case "/":
-                    return arg1 / arg2;
+                case ShapeEnum.Kwadrat:
+                    return Parameters.Arg1 * Parameters.Arg1;
+                case ShapeEnum.Prostokąt:
+                    return Parameters.Arg1 * Parameters.Arg2;
+                case ShapeEnum.Trojkąt:
+                    return Parameters.Arg1 * Parameters.Arg2 / 2;
+                case ShapeEnum.Koło:
+                    return (int)(System.Math.PI * Parameters.Arg1 * Parameters.Arg1);
                 default:
                     return 0;
             }
         }
     }
+}
+
+public enum ShapeEnum
+{
+    Kwadrat,
+    Prostokąt,
+    Trojkąt,
+    Koło
 }
